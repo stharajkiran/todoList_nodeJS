@@ -1,42 +1,46 @@
-import dotenv from "dotenv"
-import express from "express"
-import cors from "cors"
+import dotenv from "dotenv";
+import express from "express";
+import cors from "cors";
+import path from "path";
 
 import notesRoutes from "./routes/notesRoutes.js";
-import {connectDB} from "./config/db.js"
+import { connectDB } from "./config/db.js";
 import rateLimiter from "./middleware/rateLimiter.js";
-
 
 // load the env variables
 dotenv.config();
 // console.log(process.env.MONGO_URI);
 
-const app = express()
-const PORT = process.env.PORT || 5001
+const app = express();
+const PORT = process.env.PORT || 5001;
+const __dirname = path.resolve();
 
-// connect to database
-
-
-// middleware to parse json data
-app.use(cors(
-{  
-  origin: "http://localhost:5173"
-}))
+if (process.env.NODE_ENV !== "production") {
+  // middleware to parse json data
+  app.use(
+    cors({
+      origin: "http://localhost:5173",
+    })
+  );
+}
 
 app.use(express.json());
-app.use(rateLimiter)
+app.use(rateLimiter);
 
+// routes
+app.use("/api/notes", notesRoutes);
+if (process.env.NODE_ENV === "production") {
+  // static folder for frontend
+  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+  // serve frontend
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
+  });
+}
 
-// custom middleware
-// app.use( (req,res, next) => {
-//   console.log("Hello from middleware");
-//   console.log(req.method, req.path);
-//   next();
-// })
-
-app.use("/api/notes", notesRoutes)
+// connect to db and start the server
 connectDB().then(() => {
-  app.listen(PORT , () => {
-  console.log("Server is running on port: ", PORT);
+  app.listen(PORT, () => {
+    console.log("Server is running on port: ", PORT);
+  });
 });
-})
